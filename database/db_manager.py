@@ -97,3 +97,44 @@ class DatabaseManager:
                 ('系统上线通知', '红色文化学习打卡系统正式上线，欢迎使用！', '重要'),
                 ('学习积分规则', '每次打卡获得1积分，坚持学习红色文化！', '提示')
             ''')
+
+        def create_user(self, username: str, password: str) -> int:
+            """创建用户，返回用户ID"""
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'INSERT INTO users (username, password) VALUES (?, ?)',
+                    (username, password)
+                )
+                return cursor.lastrowid
+
+        def get_user_by_username(self, username: str) -> dict:
+            """根据用户名获取用户信息"""
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT * FROM users WHERE username = ?',
+                    (username,)
+                )
+                row = cursor.fetchone()
+                return dict(row) if row else None
+
+        def get_user_by_id(self, user_id: int) -> dict:
+            """根据用户ID获取用户信息"""
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT * FROM users WHERE user_id = ?',
+                    (user_id,)
+                )
+                row = cursor.fetchone()
+                return dict(row) if row else None
+
+        def update_user_score(self, user_id: int, delta: int):
+            """更新用户积分"""
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'UPDATE users SET learning_score = learning_score + ? WHERE user_id = ?',
+                    (delta, user_id)
+                )
