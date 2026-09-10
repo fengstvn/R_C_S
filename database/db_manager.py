@@ -300,3 +300,100 @@ class DatabaseManager:
                 (limit,)
             )
             return [dict(row) for row in cursor.fetchall()]
+
+    def create_record(self, user_id: int, place_id: int, experience: str = '') -> int:
+        """创建打卡记录"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 检查是否已打卡该景点
+            cursor.execute(
+                'SELECT id FROM records WHERE user_id = ? AND place_id = ?',
+                (user_id, place_id)
+            )
+            if cursor.fetchone():
+                raise ValueError('您已打卡过该景点！')
+
+            # 插入打卡记录
+            cursor.execute(
+                'INSERT INTO records (user_id, place_id, experience) VALUES (?, ?, ?)',
+                (user_id, place_id, experience)
+            )
+            record_id = cursor.lastrowid
+
+            # 用户积分+1
+            self.update_user_score(user_id, 1)
+            # 景点打卡次数+1
+            self.increment_checkin_count(place_id)
+
+            return record_id
+
+    def get_records_by_user(self, user_id: int) -> List[Dict]:
+        """获取用户的所有打卡记录"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT r.*, p.name as place_name, p.location 
+                FROM records r
+                JOIN places p ON r.place_id = p.id
+                WHERE r.user_id = ?
+                ORDER BY r.checkin_time DESC
+            ''', (user_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_record_by_id(self, record_id: int) -> Optional[Dict]:
+        """根据ID获取打卡记录"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT r.*, p.name as place_name, p.location 
+                FROM records r
+                JOIN places p ON r.place_id = p.id
+                WHERE r.id = ?
+            ''', (record_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_records_by_place(self, place_id: int) -> List[Dict]:
+        """根据景点ID获取所有打卡记录"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT r.*, u.username 
+                FROM records r
+                JOIN users u ON r.user_id = u.id
+                WHERE r.place_id = ?
+                ORDER BY r.checkin_time DESC
+            ''', (place_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def update_record_experience(self, record_id: int, new_experience: str):
+        """修改打卡心得"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE records SET experience = ? WHERE id = ?',
+                (new_experience, record_id)
+            )
+
+    def delete_record(self, record_id: int):
+        """删除打卡记录，同时用户积分-1"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT user_id FROM records WHERE id = ?', (record_id,))
+            row = cursor.fetchone()
+            if row:
+                user_id = row['user_id']
+                cursor.execute('DELETE FROM records WHERE id = ?', (record_id,))
+                self.update_user_score(user_id, -1)
+
+    def has_record(self, user_id: int, place_id: int) -> bool:
+        """检查用户是否已打卡该景点"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT COUNT(*) FROM records WHERE user_id = ? AND place_id = ?',
+                (user_id, place_id)
+            )
+            count = cursor.fetchone()[0]
+            return count > 0
