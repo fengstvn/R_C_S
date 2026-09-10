@@ -25,7 +25,7 @@ class MainWindow:
 
         # 用户信息
         info_text = f"👤 {self.user['username']}  |  学习积分: {self.user['learning_score']}"
-        if self.user['role'] == 'admin':
+        if self.user.get('role') == 'admin':
             info_text += "  |  🔑 管理员"
 
         self.info_label = tk.Label(top_frame, text=info_text, font=("微软雅黑", 12),
@@ -48,14 +48,14 @@ class MainWindow:
 
         # 导航按钮
         nav_buttons = [
-            ("📢 公告管理", self.show_announcements),
-            ("🏛️ 景点管理", self.show_attractions),
-            ("⭐ 热门景点", self.show_hot_attractions),
+            ("📢 公告管理", self.show_notices),
+            ("🏛️ 景点管理", self.show_places),
+            ("⭐ 热门景点", self.show_hot_places),
             ("👤 个人信息", self.show_profile),
-            ("📝 打卡记录", self.show_checkins),
+            ("📝 打卡记录", self.show_records),
         ]
 
-        if self.user['role'] == 'admin':
+        if self.user.get('role') == 'admin':
             nav_buttons.insert(2, ("👥 用户管理", self.show_users))
 
         for text, command in nav_buttons:
@@ -71,77 +71,68 @@ class MainWindow:
         self.content_frame.pack(side='right', fill='both', expand=True)
 
         # 默认显示公告
-        self.show_announcements()
+        self.show_notices()
 
     def clear_content(self):
         """清空内容区域"""
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
-    def show_announcements(self):
-        """显示公告管理（占位）"""
+    def show_notices(self):
+        """显示公告管理"""
         self.clear_content()
-        tk.Label(self.content_frame, text="📢 公告管理",
-                 font=("微软雅黑", 18, "bold"), bg="white").pack(pady=50)
-        tk.Label(self.content_frame, text="公告功能开发中...",
-                 font=("微软雅黑", 12), fg="#666", bg="white").pack()
+        from views.notice_view import NoticeView
+        NoticeView(self.content_frame, self.db, self.user.get('role') == 'admin')
 
-    def show_attractions(self):
-        """显示景点管理（占位）"""
+    def show_places(self):
+        """显示景点管理"""
         self.clear_content()
-        tk.Label(self.content_frame, text="🏛️ 景点管理",
-                 font=("微软雅黑", 18, "bold"), bg="white").pack(pady=50)
-        tk.Label(self.content_frame, text="景点功能开发中...",
-                 font=("微软雅黑", 12), fg="#666", bg="white").pack()
+        from views.place_view import PlaceView
+        PlaceView(self.content_frame, self.db, self.user.get('role') == 'admin')
 
-    def show_hot_attractions(self):
-        """显示热门景点（占位）"""
+    def show_hot_places(self):
+        """显示热门景点"""
         self.clear_content()
-        tk.Label(self.content_frame, text="⭐ 热门景点排行榜",
-                 font=("微软雅黑", 18, "bold"), fg="#FF6B00", bg="white").pack(pady=50)
-        tk.Label(self.content_frame, text="热门景点功能开发中...",
-                 font=("微软雅黑", 12), fg="#666", bg="white").pack()
+        from views.place_view import HotPlaceView
+        HotPlaceView(self.content_frame, self.db)
 
     def show_profile(self):
-        """显示个人信息（占位）"""
+        """显示个人信息"""
         self.clear_content()
-        tk.Label(self.content_frame, text="👤 个人信息",
-                 font=("微软雅黑", 18, "bold"), bg="white").pack(pady=50)
-        tk.Label(self.content_frame, text="个人信息功能开发中...",
-                 font=("微软雅黑", 12), fg="#666", bg="white").pack()
+        from views.profile_view import ProfileView
+        ProfileView(self.content_frame, self.db, self.user, self.update_user_info)
 
-    def show_checkins(self):
-        """显示打卡记录（占位）"""
+    def show_records(self):
+        """显示打卡记录"""
         self.clear_content()
-        tk.Label(self.content_frame, text="📝 打卡记录",
-                 font=("微软雅黑", 18, "bold"), bg="white").pack(pady=50)
-        tk.Label(self.content_frame, text="打卡功能开发中...",
-                 font=("微软雅黑", 12), fg="#666", bg="white").pack()
+        from views.record_view import RecordView
+        RecordView(self.content_frame, self.db, self.user['id'], self.update_user_info)
 
     def show_users(self):
-        """显示用户管理（占位）"""
+        """显示用户管理（管理员）"""
         self.clear_content()
-        tk.Label(self.content_frame, text="👥 用户管理",
-                 font=("微软雅黑", 18, "bold"), bg="white").pack(pady=50)
-        tk.Label(self.content_frame, text="用户管理功能开发中（仅管理员）...",
-                 font=("微软雅黑", 12), fg="#666", bg="white").pack()
+        from views.user_view import UserView
+        UserView(self.content_frame, self.db)
 
     def update_user_info(self):
         """更新用户信息显示"""
-        # 重新获取用户信息
-        updated_user = self.db.get_user_by_id(self.user['user_id'])
-        if updated_user:
-            self.user = updated_user
-            info_text = f"👤 {self.user['username']}  |  学习积分: {self.user['learning_score']}"
-            if self.user['role'] == 'admin':
-                info_text += "  |  🔑 管理员"
+        if self.user.get('role') == 'admin':
+            # 管理员直接更新
+            info_text = f"👤 {self.user['username']}  |  学习积分: {self.user['learning_score']}  |  🔑 管理员"
             self.info_label.config(text=info_text)
+        else:
+            # 重新获取用户信息
+            updated_user = self.db.get_user_by_id(self.user['id'])
+            if updated_user:
+                self.user = dict(updated_user)
+                self.user['role'] = 'user'
+                info_text = f"👤 {self.user['username']}  |  学习积分: {self.user['learning_score']}"
+                self.info_label.config(text=info_text)
 
     def logout(self):
         """退出登录"""
         if messagebox.askyesno("确认", "确定要退出登录吗？"):
             self.root.destroy()
-            # 重新打开登录窗口
             from views.login_window import LoginWindow
             new_root = tk.Tk()
             LoginWindow(new_root, self.on_login_success)

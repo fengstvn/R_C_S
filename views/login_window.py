@@ -14,6 +14,15 @@ class LoginWindow:
         self.on_login_success = on_login_success
         self.current_frame = None
 
+        # 管理员硬编码（不存储在数据库中）
+        self.admin = {
+            'id': 0,
+            'username': 'admin',
+            'password': 'admin123',
+            'role': 'admin',
+            'learning_score': 0
+        }
+
         self.show_login()
 
     def clear_frame(self):
@@ -104,13 +113,21 @@ class LoginWindow:
             messagebox.showerror("错误", "请输入用户名和密码！")
             return
 
-        user = self.db.get_user_by_username(username)
-        if not user or user['password'] != password:
-            messagebox.showerror("错误", "用户名或密码错误！")
+        # 检查是否为管理员
+        if username == self.admin['username'] and password == self.admin['password']:
+            messagebox.showinfo("成功", f"管理员登录成功！")
+            self.on_login_success(self.admin)
             return
 
-        messagebox.showinfo("成功", f"登录成功！欢迎 {username}")
-        self.on_login_success(user)
+        # 验证普通用户（使用加盐哈希）
+        user = self.db.verify_user_password(username, password)
+        if user:
+            user = dict(user)
+            user['role'] = 'user'
+            messagebox.showinfo("成功", f"登录成功！欢迎 {username}")
+            self.on_login_success(user)
+        else:
+            messagebox.showerror("错误", "用户名或密码错误！")
 
     def register(self):
         """注册新用户"""
@@ -134,9 +151,8 @@ class LoginWindow:
             messagebox.showerror("错误", "两次输入的密码不一致！")
             return
 
-        # 检查用户名是否已存在
         if self.db.get_user_by_username(username):
-            messagebox.showerror("错误", "用户名已存在，请换一个！")
+            messagebox.showerror("错误", "用户名已存在！")
             return
 
         try:
