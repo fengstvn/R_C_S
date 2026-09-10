@@ -104,111 +104,199 @@ class DatabaseManager:
                 ('新增景点推荐', '系统已添加5个红色文化景点，欢迎前往学习打卡！', '系统更新')
             ''')
 
-        def create_user(self, username: str, password: str) -> int:
-            """创建用户，返回用户ID（密码使用加盐哈希）"""
-            salt, password_hash = PasswordUtils.encrypt_password(password)
+    def create_user(self, username: str, password: str) -> int:
+        """创建用户，返回用户ID（密码使用加盐哈希）"""
+        salt, password_hash = PasswordUtils.encrypt_password(password)
 
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    'INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)',
-                    (username, password_hash, salt)
-                )
-                return cursor.lastrowid
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)',
+                (username, password_hash, salt)
+            )
+            return cursor.lastrowid
 
-        def get_user_by_username(self, username: str) -> Optional[Dict]:
-            """根据用户名获取用户信息"""
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    'SELECT * FROM users WHERE username = ?',
-                    (username,)
-                )
-                row = cursor.fetchone()
-                return dict(row) if row else None
+    def get_user_by_username(self, username: str) -> Optional[Dict]:
+        """根据用户名获取用户信息"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM users WHERE username = ?',
+                (username,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
-        def get_user_by_id(self, user_id: int) -> Optional[Dict]:
-            """根据用户ID获取用户信息"""
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    'SELECT * FROM users WHERE id = ?',
-                    (user_id,)
-                )
-                row = cursor.fetchone()
-                return dict(row) if row else None
+    def get_user_by_id(self, user_id: int) -> Optional[Dict]:
+        """根据用户ID获取用户信息"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM users WHERE id = ?',
+                (user_id,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
-        def verify_user_password(self, username: str, password: str) -> Optional[Dict]:
-            """验证用户密码，成功返回用户信息，失败返回None"""
-            user = self.get_user_by_username(username)
-            if not user:
-                return None
-
-            if PasswordUtils.verify_password(password, user['salt'], user['password_hash']):
-                return user
+    def verify_user_password(self, username: str, password: str) -> Optional[Dict]:
+        """验证用户密码，成功返回用户信息，失败返回None"""
+        user = self.get_user_by_username(username)
+        if not user:
             return None
 
-        def update_user_score(self, user_id: int, delta: int):
-            """更新用户积分"""
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    'UPDATE users SET learning_score = learning_score + ? WHERE id = ?',
-                    (delta, user_id)
-                )
+        if PasswordUtils.verify_password(password, user['salt'], user['password_hash']):
+            return user
+        return None
 
-            def create_notice(self, title: str, content: str, remark: str = '') -> int:
-                """发布公告"""
-                with self.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        'INSERT INTO notices (title, content, remark) VALUES (?, ?, ?)',
-                        (title, content, remark)
-                    )
-                    return cursor.lastrowid
+    def update_user_score(self, user_id: int, delta: int):
+        """更新用户积分"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE users SET learning_score = learning_score + ? WHERE id = ?',
+                (delta, user_id)
+            )
 
-            def get_all_notices(self) -> List[Dict]:
-                """获取所有公告"""
-                with self.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute('SELECT * FROM notices ORDER BY created_at DESC')
-                    return [dict(row) for row in cursor.fetchall()]
+    def create_notice(self, title: str, content: str, remark: str = '') -> int:
+        """发布公告"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO notices (title, content, remark) VALUES (?, ?, ?)',
+                (title, content, remark)
+            )
+            return cursor.lastrowid
 
-            def get_notice_by_id(self, notice_id: int) -> Optional[Dict]:
-                """根据ID获取公告"""
-                with self.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute('SELECT * FROM notices WHERE id = ?', (notice_id,))
-                    row = cursor.fetchone()
-                    return dict(row) if row else None
+    def get_all_notices(self) -> List[Dict]:
+        """获取所有公告"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM notices ORDER BY created_at DESC')
+            return [dict(row) for row in cursor.fetchall()]
 
-            def search_notices_by_title(self, keyword: str) -> List[Dict]:
-                """按标题搜索公告"""
-                with self.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        'SELECT * FROM notices WHERE title LIKE ?',
-                        (f'%{keyword}%',)
-                    )
-                    return [dict(row) for row in cursor.fetchall()]
+    def get_notice_by_id(self, notice_id: int) -> Optional[Dict]:
+        """根据ID获取公告"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM notices WHERE id = ?', (notice_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
-            def update_notice(self, notice_id: int, **kwargs):
-                """修改公告"""
-                with self.get_connection() as conn:
-                    cursor = conn.cursor()
-                    fields = []
-                    values = []
-                    for key, value in kwargs.items():
-                        if key in ['title', 'content', 'remark']:
-                            fields.append(f'{key} = ?')
-                            values.append(value)
-                    if fields:
-                        sql = f'UPDATE notices SET {", ".join(fields)} WHERE id = ?'
-                        values.append(notice_id)
-                        cursor.execute(sql, values)
+    def search_notices_by_title(self, keyword: str) -> List[Dict]:
+        """按标题搜索公告"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM notices WHERE title LIKE ?',
+                (f'%{keyword}%',)
+            )
+            return [dict(row) for row in cursor.fetchall()]
 
-            def delete_notice(self, notice_id: int):
-                """删除公告"""
-                with self.get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute('DELETE FROM notices WHERE id = ?', (notice_id,))
+    def update_notice(self, notice_id: int, **kwargs):
+        """修改公告"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            fields = []
+            values = []
+            for key, value in kwargs.items():
+                if key in ['title', 'content', 'remark']:
+                    fields.append(f'{key} = ?')
+                    values.append(value)
+            if fields:
+                sql = f'UPDATE notices SET {", ".join(fields)} WHERE id = ?'
+                values.append(notice_id)
+                cursor.execute(sql, values)
+
+    def delete_notice(self, notice_id: int):
+        """删除公告"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM notices WHERE id = ?', (notice_id,))
+
+    def create_place(self, name: str, location: str, description: str = '', image_path: str = '') -> int:
+        """创建景点"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO places (name, location, description, image_path) VALUES (?, ?, ?, ?)',
+                (name, location, description, image_path)
+            )
+            return cursor.lastrowid
+
+    def get_all_places(self) -> List[Dict]:
+        """获取所有景点"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM places ORDER BY checkin_count DESC')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_place_by_id(self, place_id: int) -> Optional[Dict]:
+        """根据ID获取景点"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM places WHERE id = ?', (place_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def search_places_by_name(self, keyword: str) -> List[Dict]:
+        """按名称搜索景点"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM places WHERE name LIKE ?',
+                (f'%{keyword}%',)
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def update_place(self, place_id: int, **kwargs):
+        """更新景点信息"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            fields = []
+            values = []
+            for key, value in kwargs.items():
+                if key in ['name', 'location', 'description', 'image_path']:
+                    fields.append(f'{key} = ?')
+                    values.append(value)
+            if fields:
+                sql = f'UPDATE places SET {", ".join(fields)} WHERE id = ?'
+                values.append(place_id)
+                cursor.execute(sql, values)
+
+    def delete_place(self, place_id: int):
+        """删除景点"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM places WHERE id = ?', (place_id,))
+
+    def increment_checkin_count(self, place_id: int):
+        """增加景点打卡次数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE places SET checkin_count = checkin_count + 1 WHERE id = ?',
+                (place_id,)
+            )
+            cursor.execute(
+                'UPDATE places SET is_hot = 1 WHERE checkin_count >= 10 AND id = ?',
+                (place_id,)
+            )
+
+    def get_hot_places(self) -> List[Dict]:
+        """获取热门景点（打卡次数 >= 10）"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM places WHERE is_hot = 1 ORDER BY checkin_count DESC'
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_top_hot_places(self, limit: int = 10) -> List[Dict]:
+        """获取热门景点排行榜"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM places ORDER BY checkin_count DESC LIMIT ?',
+                (limit,)
+            )
+            return [dict(row) for row in cursor.fetchall()]
