@@ -397,3 +397,29 @@ class DatabaseManager:
             )
             count = cursor.fetchone()[0]
             return count > 0
+
+    def update_user_password(self, user_id: int, new_password: str):
+        """修改密码"""
+        salt, password_hash = PasswordUtils.encrypt_password(new_password)
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE users SET password_hash = ?, salt = ? WHERE id = ?',
+                (password_hash, salt, user_id)
+            )
+
+    def update_username(self, user_id: int, new_username: str):
+        """修改用户名"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE users SET username = ? WHERE id = ?',
+                (new_username, user_id)
+            )
+
+    def get_all_users(self) -> List[Dict]:
+        """获取所有用户（管理员用）"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, username, learning_score, created_at FROM users')
+            return [dict(row) for row in cursor.fetchall()]
