@@ -60,8 +60,8 @@ class MainWindow:
 
         for text, command in nav_buttons:
             btn = tk.Button(nav_frame, text=text, font=("微软雅黑", 11),
-                            bg="#F5F5F5", fg="#333", bd=0, anchor='w',
-                            padx=20, pady=12, width=20, command=command)
+                           bg="#F5F5F5", fg="#333", bd=0, anchor='w',
+                           padx=20, pady=12, width=20, command=command)
             btn.pack(fill='x')
             btn.bind("<Enter>", lambda e, b=btn: b.config(bg="#E8E8E8"))
             btn.bind("<Leave>", lambda e, b=btn: b.config(bg="#F5F5F5"))
@@ -130,13 +130,18 @@ class MainWindow:
                 self.info_label.config(text=info_text)
 
     def logout(self):
-        """退出登录"""
+        """退出登录：清空窗口内容，安全回到登录界面"""
         if messagebox.askyesno("确认", "确定要退出登录吗？"):
-            self.root.destroy()
+            for widget in self.root.winfo_children():
+                widget.destroy()
             from views.login_window import LoginWindow
-            new_root = tk.Tk()
-            LoginWindow(new_root, self.on_login_success)
-            new_root.mainloop()
+            LoginWindow(self.root, self.relogin)
+
+    def relogin(self, user):
+        """重新登录成功后，在同一窗口重建主界面"""
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        MainWindow(self.root, user)
 
     def on_login_success(self, user):
         """登录成功回调"""

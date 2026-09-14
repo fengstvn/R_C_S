@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from utils.admin_config import ADMIN_USERNAME
 
 
 class UserView:
@@ -38,12 +39,20 @@ class UserView:
         scrollbar.pack(side='right', fill='y')
 
     def load_users(self):
-        """加载所有用户"""
+        """加载所有用户（含内置管理员）"""
         for item in self.tree.get_children():
             self.tree.delete(item)
 
+        # 内置管理员固定显示在最上方（不存数据库）
+        self.tree.insert('', 'end', values=(
+            0,
+            ADMIN_USERNAME,
+            '—',
+            '内置账号'
+        ))
+
         users = self.db.get_all_users()
-        self.count_label.config(text=f"共 {len(users)} 位用户")
+        self.count_label.config(text=f"共 {len(users) + 1} 位用户（含 1 位内置管理员）")
 
         for user in users:
             self.tree.insert('', 'end', values=(
