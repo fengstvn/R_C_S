@@ -1,3 +1,6 @@
+"""
+数据库管理器 - 四张业务表
+"""
 import sqlite3
 from contextlib import contextmanager
 from typing import List, Dict, Any, Optional
@@ -11,10 +14,22 @@ class DatabaseManager:
 
     @contextmanager
     def get_connection(self):
-        """获取数据库连接（上下文管理器）"""
-        conn = sqlite3.connect(self.db_path)
+        """获取数据库连接（上下文管理器）
+
+        并发加固（性能测试暴露的问题）：
+        默认的 rollback journal 模式下，多个连接的写操作会相互阻塞，
+        等待超过 5 秒即抛 "database is locked"。这里统一启用
+        WAL 日志模式、10 秒忙等待超时，写锁等待时不再立即报错。
+        """
+        conn = sqlite3.connect(self.db_path, timeout=10)
         conn.row_factory = sqlite3.Row
         try:
+            # WAL 是数据库级持久设置，只在尚未启用时切换，避免每个连接重复加锁
+            if conn.execute('PRAGMA journal_mode').fetchone()[0].lower() != 'wal':
+                conn.execute('PRAGMA journal_mode=WAL')
+            conn.execute('PRAGMA synchronous=NORMAL')   # WAL 下兼顾安全与速度
+            conn.execute('PRAGMA busy_timeout=10000')   # 写锁等待 10 秒
+            conn.execute('PRAGMA foreign_keys=ON')      # 启用外键级联
             yield conn
             conn.commit()
         except Exception as e:
